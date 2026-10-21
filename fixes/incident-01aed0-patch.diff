@@ -1,0 +1,36 @@
+--- a/src/controllers/paymentController.ts
++++ b/src/controllers/paymentController.ts
+@@
+-export async function processPayment(req: Request, res: Response) {
+-  const { amount, currency, source } = req.body;
+-  // Stripe charge creation
+-  const charge = await stripe.charges.create({
+-    amount,
+-    currency,
+-    source,
+-  });
+-  res.json({ success: true, chargeId: charge.id });
+-}
++export async function processPayment(req: Request, res: Response) {
++  const { amount, currency, source } = req.body;
++  try {
++    // Stripe charge creation
++    const charge = await stripe.charges.create({
++      amount,
++      currency,
++      source,
++    });
++    res.json({ success: true, chargeId: charge.id });
++  } catch (err) {
++    // Handle Stripe timeout and other errors gracefully
++    if (err && err.type === 'StripeConnectionTimeout') {
++      // Optionally implement retry logic here
++      res.status(504).json({ success: false, error: 'Payment gateway timeout. Please try again later.' });
++    } else {
++      const message = err && err.message ? err.message : 'Unknown payment error';
++      res.status(502).json({ success: false, error: message });
++    }
++    // Log the error for monitoring
++    console.error('processPayment error:', err);
++  }
++}
