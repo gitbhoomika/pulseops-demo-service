@@ -1,0 +1,40 @@
+--- a/src/middlewares/authMiddleware.ts
++++ b/src/middlewares/authMiddleware.ts
+@@
+ export const authenticateToken = (req, res, next) => {
+-  const authHeader = req.headers['authorization'];
+-  const token = authHeader && authHeader.split(' ')[1];
+-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+-    if (err) return res.sendStatus(403);
+-    req.user = user;
+-    next();
+-  });
++  const authHeader = req.headers['authorization'];
++  // Ensure the header exists and follows the 'Bearer <token>' format
++  if (!authHeader || typeof authHeader !== 'string') {
++    return res.status(401).json({ error: 'Authorization header missing' });
++  }
++
++  const parts = authHeader.split(' ');
++  if (parts.length !== 2 || parts[0] !== 'Bearer') {
++    return res.status(401).json({ error: 'Authorization header malformed' });
++  }
++
++  const token = parts[1];
++  if (!token) {
++    return res.status(401).json({ error: 'Token not provided' });
++  }
++
++  try {
++    const user = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET as string);
++    req.user = user;
++    next();
++  } catch (err) {
++    // Handle malformed or expired tokens explicitly
++    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
++      return res.status(401).json({ error: err.message });
++    }
++    return res.sendStatus(403);
++  }
+ };
+*** End of File ***
